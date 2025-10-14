@@ -13,5 +13,7 @@ const testCdkStack = new AppCdkStack(app, 'test', {
 });
 const pipelineCdkStack = new PipelineCdkStack(app, 'pipeline-stack', {
     ecrRepository: ecrCdkStack.repository,
+    fargateServiceTest: testCdkStack.fargateService,
 });
+
 //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

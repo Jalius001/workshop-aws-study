@@ -8,7 +8,7 @@ function App() {
 
   return (
     <>
-        <p>PULL REQUEST FOR LAB2</p>
+        <p>CI/CD Test LAB4</p>
         <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
