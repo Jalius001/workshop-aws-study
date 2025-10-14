@@ -1,0 +1,18 @@
+#FROM public.ecr.aws/docker/library/node:20.19.2-alpine3.21 AS development
+FROM public.ecr.aws/docker/library/node:18-alpine AS development
+
+RUN mkdir /app && chown node:node /app
+WORKDIR /app
+
+ENV NODE_ENV=development
+
+USER node
+
+COPY --chown=node:node package.json package-lock.json* ./
+
+RUN npm install
+
+COPY --chown=node:node . .
+
+EXPOSE 8081
+CMD [ "npm", "run", "dev" ]
