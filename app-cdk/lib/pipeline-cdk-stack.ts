@@ -27,7 +27,7 @@ export class PipelineCdkStack extends Stack {
                 privileged: true,
                 computeType: codebuild.ComputeType.LARGE,
             },
-            buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec_test.yml'),
+            buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec.yml'),
         });
         const sourceOutput = new codepipeline.Artifact();
         const unitTestOutput = new codepipeline.Artifact();
