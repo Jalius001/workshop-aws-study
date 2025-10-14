@@ -9,8 +9,8 @@ export class PipelineCdkStack extends Stack {
     constructor(scope: Construct, id: string, props: StackProps) {
         super(scope, id, props);
 
-        const SourceConnection = new codeconnections.CfnConnection(this, 'CICD_Workshop_Connection', {
-            connectionName: 'CICD_Workshop_Connection',
+        const SourceConnection = new codeconnections.CfnConnection(this, 'GitHub_Jalius001', {
+            connectionName: 'GitHub Jalius001 Connection',
             providerType: 'GitHub',
         });
 
@@ -41,7 +41,7 @@ export class PipelineCdkStack extends Stack {
                     repo: 'workshop-aws-study',
                     output: sourceOutput,
                     branch: 'main',
-                    connectionArn: 'arn:aws:codeconnections:us-east-1:354196887646:connection/94c6fda5-ec45-470f-92c2-3b2e5d933cba',
+                    connectionArn: 'arn:aws:codeconnections:us-east-1:354196887646:connection/3fa769ac-03c4-4ed1-9678-1fb37c5b3d76',
                 }),
             ],
         });
