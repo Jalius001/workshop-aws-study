@@ -1,0 +1,3 @@
+{
+  "app": "gradle run -Dexec.mainClass=com.ssp.infrastructure.Deployment"
+}
