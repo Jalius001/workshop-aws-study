@@ -11,9 +11,17 @@ import software.amazon.awscdk.services.codepipeline.*;
 import software.amazon.awscdk.services.codepipeline.actions.*;
 import software.amazon.awscdk.services.ecr.Repository;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
+import software.amazon.awscdk.services.events.*;
+import software.amazon.awscdk.services.events.Rule;
+import software.amazon.awscdk.services.events.RuleProps;
+import software.amazon.awscdk.services.events.targets.SnsTopic;
+import software.amazon.awscdk.services.events.targets.SnsTopicProps;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.PolicyStatementProps;
+import software.amazon.awscdk.services.sns.Topic;
+import software.amazon.awscdk.services.sns.TopicProps;
+import software.amazon.awscdk.services.sns.subscriptions.EmailSubscription;
 import software.amazon.awscdk.services.ssm.StringParameter;
 import software.amazon.awscdk.services.ssm.StringParameterProps;
 import software.constructs.Construct;
@@ -22,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static java.lang.String.format;
 
 
 public class PipelineStack extends Stack {
@@ -274,6 +284,31 @@ public class PipelineStack extends Stack {
                 .dashboardName("CICD_Dashboard")
                 .widgets(List.of(List.of(buildRate, buildsCount, averageDuration, queuedDuration, downloadDuration)))
                 .build());
+
+        Topic failureTopic = new Topic(this, "BuildFailure", TopicProps.builder()
+                .displayName("BuildFailure")
+                .build());
+        EmailSubscription emailSubscription = new EmailSubscription("s.rylskyy@gmail.com");
+        failureTopic.addSubscription(emailSubscription);
+
+        // CloudWatch event rule triggered on pipeline failures
+        Rule pipelineFailureRule = new Rule(this, "PipelineFailureRule", RuleProps.builder()
+                .description("Notify on pipeline failures")
+                .eventPattern(EventPattern.builder()
+                        .source(List.of("aws.codepipeline"))
+                        .detailType(List.of("CodePipeline Pipeline Execution State Change"))
+                        .detail(Map.of("state", List.of("FAILED")))
+                        .build())
+                .build());
+
+        SnsTopic snsTopic = new SnsTopic(failureTopic, SnsTopicProps.builder()
+                .message(RuleTargetInput.fromText(
+                        format("Pipeline Failure Detected! Pipeline: %s, Execution ID: %s",
+                                EventField.fromPath("$.detail.pipeline"),
+                                EventField.fromPath("$.detail.execution-id"))))
+                .build());
+        pipelineFailureRule.addTarget(snsTopic);
+
 
         new CfnOutput(this, "SourceConnectionArn", CfnOutputProps.builder()
                 .value(gitHubConnection.getAttrConnectionArn())
