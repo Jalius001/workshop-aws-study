@@ -1,10 +1,8 @@
 package com.ssp.infrastructure;
 
 import org.jetbrains.annotations.Nullable;
-import software.amazon.awscdk.CfnOutput;
-import software.amazon.awscdk.CfnOutputProps;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.*;
+import software.amazon.awscdk.services.cloudwatch.*;
 import software.amazon.awscdk.services.codebuild.*;
 import software.amazon.awscdk.services.codeconnections.CfnConnection;
 import software.amazon.awscdk.services.codeconnections.CfnConnectionProps;
@@ -23,6 +21,7 @@ import software.constructs.Construct;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 
 public class PipelineStack extends Stack {
@@ -48,7 +47,7 @@ public class PipelineStack extends Stack {
                 .build());
         Map<String, BuildEnvironmentVariable> environmentVariables = new HashMap<>();
         environmentVariables.put("IMAGE_TAG", BuildEnvironmentVariable.builder().type(BuildEnvironmentVariableType.PLAINTEXT).value("latest").build());
-        environmentVariables.put("IMAGE_REPO_URI", BuildEnvironmentVariable.builder().type(BuildEnvironmentVariableType.PLAINTEXT).value(props.getEcrRepository().getRepositoryUri()).build());
+        environmentVariables.put("IMAGE_REPO_URI", BuildEnvironmentVariable.builder().type(BuildEnvironmentVariableType.PLAINTEXT).value(Optional.ofNullable(props).map(PipelineStackProps::getEcrRepository).map(Repository::getRepositoryUri).orElse("")).build());
         environmentVariables.put("AWS_DEFAULT_REGION", BuildEnvironmentVariable.builder().type(BuildEnvironmentVariableType.PLAINTEXT).value(System.getenv().get("CDK_DEFAULT_REGION")).build());
         PipelineProject dockerBuild = new PipelineProject(this, "DockerBuild", PipelineProjectProps.builder()
                 .environmentVariables(environmentVariables)
@@ -106,12 +105,12 @@ public class PipelineStack extends Stack {
                 .applicationName("my-app")
                 .build());
         EcsDeploymentGroup prodEcsDeploymentGroup = new EcsDeploymentGroup(this, "my-app-dg", EcsDeploymentGroupProps.builder()
-                .service(props.getProdFargateService().getService())
+                .service(Optional.ofNullable(props).map(PipelineStackProps::getProdFargateService).map(ApplicationLoadBalancedFargateService::getService).orElse(null))
                 .blueGreenDeploymentConfig(EcsBlueGreenDeploymentConfig.builder()
-                        .blueTargetGroup(props.getProdFargateService().getTargetGroup())
-                        .greenTargetGroup(props.getGreenTargetGroup())
-                        .listener(props.getProdFargateService().getListener())
-                        .testListener(props.getGreenLoadBalancerListener())
+                        .blueTargetGroup(Optional.ofNullable(props).map(PipelineStackProps::getProdFargateService).map(ApplicationLoadBalancedFargateService::getTargetGroup).orElse(null))
+                        .greenTargetGroup(Optional.ofNullable(props).map(PipelineStackProps::getGreenTargetGroup).orElse(null))
+                        .listener(Optional.ofNullable(props).map(PipelineStackProps::getProdFargateService).map(ApplicationLoadBalancedFargateService::getListener).orElse(null))
+                        .testListener(Optional.ofNullable(props).map(PipelineStackProps::getGreenLoadBalancerListener).orElse(null))
                         .build())
                 .deploymentConfig(EcsDeploymentConfig.LINEAR_10_PERCENT_EVERY_1_MINUTES)
                 .application(ecsCodeDeployApp)
@@ -161,7 +160,7 @@ public class PipelineStack extends Stack {
                 .actions(List.of(
                         new EcsDeployAction(EcsDeployActionProps.builder()
                                 .actionName("Deploy-Fargate-Test")
-                                .service(props.getTestFargateService().getService())
+                                .service(Optional.ofNullable(props).map(PipelineStackProps::getTestFargateService).map(ApplicationLoadBalancedFargateService::getService).orElse(null))
                                 .input(dockerBuildOutput)
                                 .build()
                         )))
@@ -181,6 +180,33 @@ public class PipelineStack extends Stack {
                                 .runOrder(2)
                                 .build()
                         )))
+                .build());
+
+        GraphWidget buildRate = new GraphWidget(GraphWidgetProps.builder()
+                .title("Build Successes and Failures")
+                .width(6)
+                .height(6)
+                .view(GraphWidgetView.PIE)
+                .left(List.of(
+                        new Metric(MetricProps.builder()
+                                .namespace("AWS/CodeBuild")
+                                .metricName("SucceededBuilds")
+                                .statistic("sum")
+                                .label("Succeeded Builds")
+                                .period(Duration.days(30))
+                                .build()),
+                        new Metric(MetricProps.builder()
+                                .namespace("AWS/CodeBuild")
+                                .metricName("FailedBuilds")
+                                .statistic("sum")
+                                .label("Failed Builds")
+                                .period(Duration.days(30))
+                                .build())
+                                ))
+                .build());
+        new Dashboard(this, "CICD_Dashboard", DashboardProps.builder()
+                .dashboardName("CICD_Dashboard")
+                .widgets(List.of(List.of(buildRate)))
                 .build());
 
         new CfnOutput(this, "SourceConnectionArn", CfnOutputProps.builder()
