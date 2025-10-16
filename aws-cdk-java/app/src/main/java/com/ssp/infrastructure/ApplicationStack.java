@@ -34,15 +34,8 @@ public class ApplicationStack extends Stack {
 
 
     public ApplicationStack(@Nullable Construct scope, @Nullable String id, @Nullable ApplicationStackProps props) {
-        super(scope, format("%s-app-stack", id));
+        super(scope, format("%s-app-stack", id), props);
 
-        // example resource
-        Queue queue = new Queue(this, "ApplicationQueue", new QueueProps() {
-            @Override
-            public Duration getDeliveryDelay() {
-                return Duration.seconds(300);
-            }
-        });
         Vpc vpc = new Vpc(this, format("%s-Vpc", id));
         Cluster ecsCluster = new Cluster(this, format("%s-EcsCluster", id), new ClusterProps() {
             @Override
@@ -76,15 +69,15 @@ public class ApplicationStack extends Stack {
                     .targetType(TargetType.IP)
                     .vpc(vpc)
                     .build());
-            greenLoadBalancerListener.addTargetGroups(format("%s-GreenListener", id), AddApplicationTargetGroupsProps.builder()
-                    .targetGroups(List.of(greenTargetGroup))
-                    .build());
             greenTargetGroup.configureHealthCheck(HealthCheck.builder()
                     .timeout(Duration.seconds(10))
                     .unhealthyThresholdCount(2)
                     .healthyThresholdCount(2)
                     .interval(Duration.seconds(11))
                     .path("/my-app")
+                    .build());
+            greenLoadBalancerListener.addTargetGroups(format("%s-GreenListener", id), AddApplicationTargetGroupsProps.builder()
+                    .targetGroups(List.of(greenTargetGroup))
                     .build());
         } else {
             //Test service definition
